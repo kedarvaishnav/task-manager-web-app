@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Forge</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+    <h2>Create task</h2>
+
+    <input type="text" id="titleinput" placeholder="Enter task title" />
+    <select id="status">
+        <option value="">Completed? (optional)</option>
+        <option value="true">true</option>
+        <option value="false">false</option>
+    </select>
+
+    <button onclick="createTask()">Create Task</button>
+    <p id="response"></p>
+    <button onclick="loadTasks()">Show task</button>
+    <ul id="taskList"></ul>
+    <h2>Req Task Title</h2>
+    <input type="text" id="reqtaskTitle" placeholder="Enter the task Title" />
+    <button onclick="showtask()">Show task</button>
+
+    <button onclick="deleteAllTasks()">Delete ALL Tasks</button>
+    <p id="deleteAllResult"></p>
+
+    <p id="taskResult"></p>
+
+    <h3>Update Task</h3>
+
+    <input type="text" id="updateTaskTitle" placeholder="Task Title" />
+
+    <input type="text" id="updateTitle" placeholder="New title (optional)" />
+
+    <select id="updateCompleted">
+        <option value="">Completed? (optional)</option>
+        <option value="true">true</option>
+        <option value="false">false</option>
+    </select>
+
+    <button onclick="updateTask()">Update Task</button>
+
+    <p id="updateResult"></p>
+
+    <h3>Delete Task</h3>
+
+    <input type="text" id="deleteTaskTitle" placeholder="Task Title to delete" />
+
+    <button onclick="deleteTask()">Delete Task</button>
+
+    <p id="deleteResult"></p>
+
+    <button onclick="logout()">Logout</button>
+
+
+    <script>
+
+        function logout() {
+            localStorage.removeItem("token");
+            alert("Logged out");
+            window.location.href = "login.html";
+        }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                alert("You are not logged in. Please login first.");
+                throw new Error("No token found");
+            }
+
+            return {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            };
+        }
+
+        function createTask() {
+            const title = document.getElementById("titleinput").value;
+            const statusreq = document.getElementById("status").value;
+
+            if (!title) {
+                document.getElementById("response").innerText =
+                    "Title cannot be empty";
+                return;
+            }
+
+            const body = { title };
+
+            if (statusreq !== "") {
+                body.completed = statusreq === "true";
+            }
+
+            fetch("http://localhost:3000/tasks", {
+                method: "POST",
+                headers:
+                    // "Content-Type": "application/json"
+                    getAuthHeaders(),
+                body: JSON.stringify(body)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("response").innerText =
+                        `Task created: ${data.title}, Completed: ${data.completed}`;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById("response").innerText =
+                        "Error creating task";
+                });
+        }
+
+        function loadTasks() {
+            fetch("http://localhost:3000/tasks", {
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+            })
+
+                .then(res => res.json())
+                .then(tasks => {
+                    const list = document.getElementById("taskList");
+                    list.innerHTML = "";
+
+                    tasks.forEach(task => {
+                        const li = document.createElement("li");
+                        li.innerText = task.title;
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                });
+        }
+
+        function showtask() {
+            const title = document.getElementById("reqtaskTitle").value;
+
+
+            if (!title) {
+                document.getElementById("taskResult").innerText =
+                    "Please enter a task";
+                return;
+            }
+
+            fetch(`http://localhost:3000/tasks/title/${title}`, {
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+            })//id is number so use back ticks
+                .then(res => {
+
+                    if (!res.ok) {
+                        throw new Error("Task not found");
+                    }
+                    return res.json()
+                })
+                .then(task => {
+                    document.getElementById("taskResult").innerText =
+                        `Title : ${task.title} , Completed: ${task.completed}`;
+                })
+                .catch(err => {
+                    document.getElementById("taskResult").innerText =
+                        err.message;
+                });
+        }
+
+        function updateTask() {
+            const title = document.getElementById("updateTaskTitle").value;
+            const Newtitle = document.getElementById("updateTitle").value;
+            const completedValue = document.getElementById("updateCompleted").value;
+
+            if (!title) {
+                document.getElementById("updateResult").innerText =
+                    "Task ID is required";
+                return;
+            }
+
+            // Build request body dynamically
+            const body = {};
+
+            if (Newtitle) {
+                body.title = Newtitle;
+            }
+
+            if (completedValue !== "") {
+                body.completed = completedValue === "true";
+            }
+
+            if (Object.keys(body).length === 0) {
+                document.getElementById("updateResult").innerText =
+                    "Provide at least one field to update";
+                return;
+            }
+
+            fetch(`http://localhost:3000/tasks/title/${title}`, {
+                method: "PUT",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(body)
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error("Task not found");
+                    }
+                    return res.json();
+                })
+                .then(task => {
+                    document.getElementById("updateResult").innerText =
+                        `Title: ${task.title}, Completed: ${task.completed}`;
+                })
+                .catch(err => {
+                    document.getElementById("updateResult").innerText =
+                        err.message;
+                });
+        }
+
+        function deleteTask() {
+            const title = document.getElementById("deleteTaskTitle").value;
+
+            // if (!id) {
+            //     document.getElementById("deleteResult").innerText =
+            //         "Task ID is required";
+            //     return;
+            // }
+
+            fetch(`http://localhost:3000/tasks/title/${title}`, {
+                method: "DELETE",
+
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error("Task not found");
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById("deleteResult").innerText =
+                        data.message;
+                })
+                .catch(err => {
+                    document.getElementById("deleteResult").innerText =
+                        err.message;
+                });
+        }
+
+        function deleteAllTasks() {
+            const confirmDelete = confirm("Are you sure you want to delete ALL tasks?");
+
+            if (!confirmDelete) return;
+
+            fetch("http://localhost:3000/tasks", {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("deleteAllResult").innerText =
+                        data.message;
+                    document.getElementById("taskList").innerHTML = "";
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById("deleteAllResult").innerText =
+                        "Error deleting tasks";
+                });
+        }
+
+        window.onload = () => {
+            loadTasks();
+        };
+
+    </script>
+
+</body>
+
+</html>

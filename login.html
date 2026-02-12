@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login - Task Forge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h2>Login</h2>
+
+  <input type="email" id="loginEmail" placeholder="Email" />
+  <input type="password" id="loginPassword" placeholder="Password" />
+
+  <button onclick="login()">Login</button>
+
+  <p id="loginMsg"></p>
+
+  <script>
+    async function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      if (!email || !password) {
+        document.getElementById("loginMsg").innerText =
+          "Email and password are required";
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:3000/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          document.getElementById("loginMsg").innerText =
+            data.error || "Login failed";
+          return;
+        }
+
+        // ✅ Save token
+        localStorage.setItem("token", data.token);
+
+        // ✅ Redirect to tasks page
+        window.location.href = "index.html";
+
+      } catch (err) {
+        document.getElementById("loginMsg").innerText =
+          "Server error";
+      }
+    }
+  </script>
+
+</body>
+</html>
